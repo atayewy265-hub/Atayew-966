@@ -6,45 +6,113 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Atayew 966</title>
 <style>
-body {
-  background: #101827;
-  color: white;
-  font-family: Arial;
-  padding: 25px;
-}
-h1 { color: #45d6a0; }
-input, button {
-  width: 100%;
-  padding: 14px;
-  margin: 9px 0;
-  border-radius: 9px;
-  border: none;
-  box-sizing: border-box;
-}
-button {
-  background: #45d6a0;
-  font-weight: bold;
-}
+body{background:#101827;color:white;font-family:Arial;padding:20px}
+.container{max-width:420px;margin:auto}
+h1{color:#45d6a0;text-align:center}
+input,button{width:100%;padding:14px;margin:8px 0;box-sizing:border-box;border:0;border-radius:9px}
+button{background:#45d6a0;font-weight:bold}
+.item{background:#263449;padding:12px;margin:10px 0;border-radius:9px}
+.small{width:auto;padding:8px}
 </style>
 </head>
 <body>
+<div class="container">
 <h1>🔐 Atayew 966</h1>
 <h3>Şifre Kasası</h3>
-<input id="name" placeholder="Hesap adı">
-<input id="password" type="password" placeholder="Şifre">
-<button onclick="save()">Kaydet</button>
+<input id="master" type="password" placeholder="Ana parolan">
+<button onclick="unlock()">Kasayı Aç</button>
+<div id="vault" hidden>
+<hr>
+<input id="account" placeholder="Hesap adı">
+<input id="secret" type="password" placeholder="Şifre">
+<button onclick="save()">+ Şifre Kaydet</button>
 <div id="list"></div>
+<button onclick="lock()">Kasayı Kilitle</button>
+</div>
+</div>
 <script>
-function save() {
- const n = document.getElementById('name').value;
- const p = document.getElementById('password').value;
- if(!n || !p) return alert('Bilgileri doldur');
- const data = JSON.parse(localStorage.getItem('vault') || '[]');
- data.push({n,p});
- localStorage.setItem('vault', JSON.stringify(data));
- alert('Kaydedildi');
- document.getElementById('name').value='';
- document.getElementById('password').value='';
+let key=null;
+let entries=[];
+async function derive(password,salt){
+ const material=await crypto.subtle.importKey(
+ 'raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);
+ return crypto.subtle.deriveKey(
+ {name:'PBKDF2',salt,iterations:250000,hash:'SHA-256'},
+ material,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function unlock(){
+ const password=document.getElementById('master').value;
+ if(password.length<10){alert('En az 10 karakterli ana parola kullan');return;}
+ let salt=localStorage.getItem('vaultSalt');
+ if(!salt){
+ salt=crypto.getRandomValues(new Uint8Array(16));
+ localStorage.setItem('vaultSalt',btoa(String.fromCharCode(...salt)));
+ }else{salt=Uint8Array.from(atob(salt),c=>c.charCodeAt(0));}
+ key=await derive(password,salt);
+ try{
+ const stored=localStorage.getItem('vaultData');
+ entries=stored?await decryptData(stored):[];
+ document.getElementById('vault').hidden=false;
+ document.getElementById('master').disabled=true;
+ render();
+ }catch(e){key=null;alert('Ana parola yanlış veya kasa verisi okunamadı.');}
+}
+async function encryptData(){
+ const iv=crypto.getRandomValues(new Uint8Array(12));
+ const data=await crypto.subtle.encrypt(
+ {name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(entries)));
+ return JSON.stringify({iv:btoa(String.fromCharCode(...iv)),data:btoa(String.fromCharCode(...new Uint8Array(data)))});
+}
+async function decryptData(stored){
+ const obj=JSON.parse(stored);
+ const iv=Uint8Array.from(atob(obj.iv),c=>c.charCodeAt(0));
+ const data=Uint8Array.from(atob(obj.data),c=>c.charCodeAt(0));
+ const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data);
+ return JSON.parse(new TextDecoder().decode(plain));
+}
+async function save(){
+ const account=document.getElementById('account').value.trim();
+ const secret=document.getElementById('secret').value;
+ if(!account||!secret)return alert('İki alanı da doldur');
+ entries.push({account,secret});
+ localStorage.setItem('vaultData',await encryptData());
+ document.getElementById('account').value='';
+ document.getElementById('secret').value='';
+ render();
+}
+function render(){
+ const list=document.getElementById('list');
+ list.innerHTML='';
+ entries.forEach((e,i)=>{
+ const div=document.createElement('div');
+ div.className='item';
+ const name=document.createElement('b');
+ name.textContent=e.account;
+ const show=document.createElement('button');
+ show.className='small';
+ show.textContent='Şifreyi Göster';
+ show.onclick=()=>{value.textContent=e.secret;};
+ const value=document.createElement('p');
+ value.textContent='••••••••';
+ const del=document.createElement('button');
+ del.className='small';
+ del.textContent='Sil';
+ del.onclick=async()=>{
+ if(confirm('Bu kaydı silmek istiyor musun?')){
+ entries.splice(i,1);
+ localStorage.setItem('vaultData',await encryptData());
+ render();
+ }};
+ div.append(name,value,show,del);
+ list.append(div);
+ });
+}
+function lock(){
+ key=null;
+ entries=[];
+ document.getElementById('vault').hidden=true;
+ document.getElementById('master').disabled=false;
+ document.getElementById('master').value='';
 }
 </script>
 </body>
