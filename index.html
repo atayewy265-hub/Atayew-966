@@ -1,0 +1,51 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atayew 966</title>
+<style>
+body {
+  background: #101827;
+  color: white;
+  font-family: Arial;
+  padding: 25px;
+}
+h1 { color: #45d6a0; }
+input, button {
+  width: 100%;
+  padding: 14px;
+  margin: 9px 0;
+  border-radius: 9px;
+  border: none;
+  box-sizing: border-box;
+}
+button {
+  background: #45d6a0;
+  font-weight: bold;
+}
+</style>
+</head>
+<body>
+<h1>🔐 Atayew 966</h1>
+<h3>Şifre Kasası</h3>
+<input id="name" placeholder="Hesap adı">
+<input id="password" type="password" placeholder="Şifre">
+<button onclick="save()">Kaydet</button>
+<div id="list"></div>
+<script>
+function save() {
+ const n = document.getElementById('name').value;
+ const p = document.getElementById('password').value;
+ if(!n || !p) return alert('Bilgileri doldur');
+ const data = JSON.parse(localStorage.getItem('vault') || '[]');
+ data.push({n,p});
+ localStorage.setItem('vault', JSON.stringify(data));
+ alert('Kaydedildi');
+ document.getElementById('name').value='';
+ document.getElementById('password').value='';
+}
+</script>
+</body>
+</html>
